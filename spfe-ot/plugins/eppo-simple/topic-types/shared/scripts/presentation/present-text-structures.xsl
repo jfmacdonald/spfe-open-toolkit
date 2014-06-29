@@ -5,9 +5,11 @@
 version="2.0"
  xmlns:sf="http://spfeopentoolkit.org/spfe-ot/1.0/functions"
  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+ xmlns:es="http://spfeopentoolkit.org/spfe-ot/plugins/eppo-simple/topic-types/generic-topic"
  xmlns:esf="http://spfeopentoolkit.org/spfe-ot/plugins/eppo-simple/functions"
  xmlns:config="http://spfeopentoolkit.org/spfe-ot/1.0/schemas/spfe-config"
- exclude-result-prefixes="#all"
+ exclude-result-prefixes="#all" 
+ xpath-default-namespace="http://spfeopentoolkit.org/spfe-ot/plugins/eppo-simple/topic-types/generic-topic"
 >
 <!--<xsl:output indent="no"/>-->
 <xsl:strip-space elements="terminal-session"/>
@@ -18,34 +20,34 @@ version="2.0"
 	<!-- FIXME: This needs to be an explicit list or else it overrides present-references.xsl in 
 		the import order. Might be fixed by converting individual reference types to subject-affinity or name 
 		at the synthesis stage, or by changing the import order. -->
-	<xsl:template match="*:title
-		| *:subhead
-		| *:labeled-item
-		| *:label
-		| *:item
-		| *:tr
-		| *:td
-		| *:th
-		| *:ol
-		| *:ul
-		| *:li
-		| *:note
-		| *:warning
-		| *:caution
-		| *:code
-		| *:bold-x
-		| *:italic">
+	<xsl:template match="title
+		| subhead
+		| labeled-item
+		| label
+		| item
+		| tr
+		| td
+		| th
+		| ol
+		| ul
+		| li
+		| note
+		| warning
+		| caution
+		| code
+		| bold
+		| italic">
 		<xsl:element name="{local-name()}">
 			<xsl:copy-of select="@*"/>
 			<xsl:apply-templates/>
 		</xsl:element>
 	</xsl:template>
 	
-	<xsl:template match="*:body">
+	<xsl:template match="body">
 		<xsl:apply-templates/>
 	</xsl:template>
 	
-	<xsl:template match="*:p">
+	<xsl:template match="p">
 		<p>
 			<!-- FIXME: will this copy attributes with old namespaces? Make it all explicit.-->
 			<xsl:copy-of select="@*"/>
@@ -76,33 +78,33 @@ version="2.0"
 		</xsl:for-each>
 	</xsl:template>
 
-	<xsl:template match="*:text-object">
+	<xsl:template match="text-object">
 		<xsl:apply-templates/>
 	</xsl:template>
 	
-	<xsl:template match="*:text-object/*:tracking"/>
-	<xsl:template match="*:text-object/*:id"/>
-	<xsl:template match="*:text-object/*:title">
+	<xsl:template match="text-object/tracking"/>
+	<xsl:template match="text-object/id"/>
+	<xsl:template match="text-object/title">
 		<title><xsl:apply-templates/></title>
 	</xsl:template>
 
 
 	
-	<xsl:template match="*:codeblock">
+	<xsl:template match="codeblock">
 		<codeblock>
 		<xsl:copy-of select="@*"/>
 			<xsl:apply-templates/>
 		</codeblock>
 	</xsl:template>
 
-	<xsl:template match="*:terminal-session">
+	<xsl:template match="terminal-session">
 	<!-- do it all here so we can control the whitespace in output -->
 		<codeblock>
 			<xsl:text/><xsl:apply-templates/><xsl:text/>
 		</codeblock>
 	</xsl:template>
 	
-	<xsl:template match="*:terminal-session/prompt">
+	<xsl:template match="terminal-session/prompt">
 	<!-- account for the possibility that there is no response between entries -->
 	<xsl:if test="preceding-sibling::entry">
 			<xsl:text>&#xA;</xsl:text>
@@ -113,13 +115,13 @@ version="2.0"
 		</xsl:if>
 	</xsl:template>
 	
-	<xsl:template match="*:terminal-session/*:entry">
+	<xsl:template match="terminal-session/entry">
 		<xsl:if test="normalize-space(.)">
 			<xsl:sequence select="esf:process-placeholders(., 'code', 'placeholder')"/>
 		</xsl:if>
 	</xsl:template>
 	
-	<xsl:template match="*:terminal-session/*:response">
+	<xsl:template match="terminal-session/response">
 		<xsl:if test="normalize-space(.)">
 			<xsl:text>&#xA;</xsl:text>
 			<xsl:text/><xsl:apply-templates/><xsl:text/>
@@ -127,11 +129,11 @@ version="2.0"
 	</xsl:template>
 
 	
-	<xsl:template match="*:string-literal">
+	<xsl:template match="string-literal">
 		<bold><xsl:apply-templates/></bold>
 	</xsl:template>
 	
-	<xsl:template match="*:table">
+	<xsl:template match="table">
 		<xsl:if test="@id">
 			<anchor name="table:{@id}"/>
 		</xsl:if>
@@ -141,29 +143,29 @@ version="2.0"
 		</table>
 	</xsl:template>
 	
-	<xsl:template match="*:code-sample">
+	<xsl:template match="code-sample">
 	<code-sample id="{@id}">
 		<xsl:if test="@id">
 			<anchor name="code-sample:{@id}"/>
 		</xsl:if>
-		<xsl:apply-templates select="*:title"/>
-		<xsl:if test="*:file-ref">
+		<xsl:apply-templates select="title"/>
+		<xsl:if test="file-ref">
 			<p>
 				<xsl:text>Source file: </xsl:text>
-				<xsl:apply-templates select="*:file-ref"/>
+				<xsl:apply-templates select="file-ref"/>
 			</p>
 		</xsl:if>
-		<xsl:apply-templates select="*:codeblock"/>
+		<xsl:apply-templates select="codeblock"/>
 	</code-sample>
 	</xsl:template>
 
-	<xsl:template match="*:code-sample/*:title">
+	<xsl:template match="code-sample/title">
 		<title>
 			<xsl:apply-templates/>
 		</title>
 	</xsl:template>
 
-	<xsl:template match="*:author-note">
+	<xsl:template match="author-note">
 		<xsl:if test="$config/config:build-command='draft'">
 			<xsl:element name="{local-name()}">
 				<xsl:copy-of select="@*"/>
@@ -172,7 +174,7 @@ version="2.0"
 		</xsl:if>
 	</xsl:template>
 
-	<xsl:template match="*:review-note">
+	<xsl:template match="review-note">
 		<xsl:if test="$config/config:build-command='draft'">
 			<xsl:element name="{local-name()}">
 				<xsl:copy-of select="@*"/>
@@ -181,7 +183,7 @@ version="2.0"
 		</xsl:if>
 	</xsl:template>
 	
-	<xsl:template match="*:procedure">
+	<xsl:template match="procedure">
 		<procedure id="{@id}">
 			<xsl:if test="@id">
 				<anchor name="procedure:{@id}"/>
@@ -190,17 +192,17 @@ version="2.0"
 		</procedure>
 	</xsl:template>
 	
-	<xsl:template match="*:procedure/*:title">
+	<xsl:template match="procedure/title">
 		<title>
 			<xsl:apply-templates/>
 		</title>
 	</xsl:template>
 	
-	<xsl:template match="*:procedure/*:intro">
+	<xsl:template match="procedure/intro">
 		<xsl:apply-templates/>
 	</xsl:template>
 	
-	<xsl:template match="*:step">
+	<xsl:template match="step">
 		<step>
 			<xsl:if test="@id">
 				<xsl:copy-of select="@id"/>
@@ -210,37 +212,38 @@ version="2.0"
 		</step>
 	</xsl:template>
 	
-	<xsl:template match="*:step/*:title">
+	<xsl:template match="step/title">
 		<title>
 			<xsl:apply-templates/>
 		</title>
 	</xsl:template>
 
-	<xsl:template match="*:qa">
+	<xsl:template match="qa">
 		<labeled-item>
 			<xsl:apply-templates/>
 		</labeled-item>
 	</xsl:template>
 	
-	<xsl:template match="*:qa/*:q">
+	<xsl:template match="qa/q">
 		<label>
 			<xsl:apply-templates/>
 		</label>
 	</xsl:template>
 	
-	<xsl:template match="*:qa/*:a">
+	<xsl:template match="qa/a">
 		<item>
 			<xsl:apply-templates/>
 		</item>
 	</xsl:template>
 	
-	<xsl:template match="*:codeblock[@language='C']">
+	<xsl:template match="codeblock[@language='C']">
 		<xsl:variable name="scope" select="@scope"/>
 		<codeblock>
 			<xsl:analyze-string select="." regex="([a-zA-z0-9]+)(\s*\()">
 				<xsl:matching-substring>
 					<xsl:choose>
-						<xsl:when test="esf:target-exists(regex-group(1), 'routine', $scope)">
+						<!-- FIXME: can we avoid enbedding "routine" here? -->
+						<xsl:when test="esf:target-exists(regex-group(1), 'routine')">
 							<xsl:variable name="routine">
 								<routine-name scope="{$scope}"><xsl:value-of select="regex-group(1)"/></routine-name>
 							</xsl:variable>

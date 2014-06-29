@@ -5,10 +5,12 @@
     xmlns:xs="http://www.w3.org/2001/XMLSchema"
     xmlns="http://spfeopentoolkit.org/spfe-ot/1.0/schemas/spfe-config"
     xmlns:spfe="http://spfeopentoolkit.org/spfe-ot/1.0/xslt/fuctions"
+    xmlns:sf="http://spfeopentoolkit.org/spfe-ot/1.0/functions"
     xmlns:gen="dummy-namespace-for-the-generated-xslt"
     xpath-default-namespace="http://spfeopentoolkit.org/spfe-ot/1.0/schemas/spfe-config"
     exclude-result-prefixes="#all">
     <xsl:output method="xml" indent="yes"/>
+    <xsl:include href="../common/utility-functions.xsl"/>
 
 
     <xsl:param name="HOME"/>
@@ -17,7 +19,7 @@
     <xsl:param name="SPFE_BUILD_COMMAND"/>
     <xsl:param name="configfile"/>
     
-    <xsl:variable name="config-doc" select="document(concat('file:///', translate($configfile, '\', '/')))"/>
+    <xsl:variable name="config-doc" select="document(sf:local-to-url(translate($configfile, '\', '/')))"/>
 
     <!-- directories -->
     <xsl:variable name="home" select="translate($HOME, '\', '/')"/>
@@ -108,44 +110,14 @@
 
     <xsl:template match="href|include|script|build-rules" mode="load-config">
         <xsl:element name="{name()}">
+            <xsl:copy-of select="@*"/>
             <xsl:value-of
-                select="spfe:URL-to-local(resolve-uri(spfe:resolve-defines(.),base-uri()))"/>
+                select="sf:url-to-local(resolve-uri(spfe:resolve-defines(.),base-uri()))"/>
         </xsl:element>
     </xsl:template>
 
 
-    <xsl:function name="spfe:URL-to-local">
-        <xsl:param name="URL"/>
-        <xsl:variable name="newURL">
-            <xsl:choose>
-                <!-- Windows style -->
-                <xsl:when test="matches($URL, '^file:/[a-zA-Z]:/')">
-                    <xsl:value-of select="substring-after($URL,'file:/')"/>
-                </xsl:when>
-                <!-- Windows system path -->
-                <xsl:when test="matches($URL, '^[a-zA-Z]:/')">
-                    <xsl:value-of select="$URL"/>
-                </xsl:when>
-                <!-- UNIX style -->
-                <xsl:when test="matches($URL, '^file:/')">
-                    <xsl:value-of select="substring-after($URL,'file:')"/>
-                </xsl:when>
-                <!-- unsupported protocol -->
-                <xsl:when test="matches($URL, '^[a-zA-Z]+:/')">
-                    <xsl:message terminate="yes">
-                        <xsl:text>ERROR: A URL with an unsupported protocol was specified in a config file. The URL is: </xsl:text>
-                        <xsl:value-of select="$URL"/>
-                    </xsl:message>
-                </xsl:when>
 
-                <!-- already local -->
-                <xsl:otherwise>
-                    <xsl:value-of select="$URL"/>
-                </xsl:otherwise>
-            </xsl:choose>
-        </xsl:variable>
-        <xsl:value-of select="replace($newURL, '%20', ' ')"/>
-    </xsl:function>
 
     <xsl:template name="create-build-file">
 
@@ -452,13 +424,49 @@
                 <gen:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" version="2.0">
                     <!-- It is a mystery to me why we need to put *:script here. The default namespace here
                     should be config, but it does not works without *: prefix. -->
-                    <xsl:for-each select="distinct-values(current-group()/*:script/text())">
-                        <gen:include href="{concat(if(starts-with(.,'/')) then 'file://' else 'file:/', .)}"/>
-                    </xsl:for-each>
+                    <xsl:for-each-group select="current-group()/*:script" group-by="concat(text(), ' ', normalize-space(@remap-namespace))">
+                        <xsl:choose>                
+                            <!-- If namespace remapping is specified, create a temp file with remapped namespaces -->
+                            <xsl:when test="current-group()/@remap-namespace">
+                                <xsl:variable name="map-from-namespace" select="tokenize(normalize-space(@remap-namespace),' ')[1]"/>
+                                <xsl:variable name="map-to-namespace" select="tokenize(normalize-space(@remap-namespace),' ')[2]"/>                                
+                                <xsl:variable name="temp-file-name" select="concat(sf:get-file-name-from-path(.), generate-id(.), position(), '.xsl')"/>
+                                
+                                <gen:include href="{$temp-file-name}"/>
+                                <xsl:result-document
+                                    href="file:///{$doc-set-build}/topic-sets/{$topic-set-id}/{$temp-file-name}" method="text"
+                                    indent="no" xpath-default-namespace="http://www.w3.org/1999/XSL/Transform">
+                                    <xsl:analyze-string select="unparsed-text(concat('file:///',.))" regex="(xmlns.*?=[&quot;&apos;]|xpath-default-namespace=[&quot;&apos;]){sf:escape-for-regex($map-from-namespace)}([&quot;&apos;])">
+                                         <xsl:matching-substring>
+                                             <xsl:value-of select="concat(regex-group(1),$map-to-namespace,regex-group(2))"/>
+                                         </xsl:matching-substring>
+                                         <xsl:non-matching-substring>
+                                             <xsl:value-of select="."/>
+                                         </xsl:non-matching-substring>
+                                     </xsl:analyze-string>
+                                </xsl:result-document>                                
+                            </xsl:when>
+                            <xsl:otherwise>
+                                <!-- Otherwise, just link to existing file. -->
+                                <gen:include href="{concat(if(starts-with(.,'/')) then 'file://' else 'file:/', .)}"/>
+                            </xsl:otherwise>
+                        </xsl:choose>
+                    </xsl:for-each-group>
                 </gen:stylesheet>
             </xsl:result-document>
         </xsl:for-each-group>
     </xsl:template>
+    
+   
+<!--    <xsl:template mode="rewrite-scripts" match="xsl:stylesheet">
+        <xsl:message select="."></xsl:message>
+        <xsl:attribute name="{name()}">
+            <xsl:choose>
+                <xsl:when test=".='http://spfeopentoolkit.org/spfe-ot/1.0/test-failed'">http://spfeopentoolkit.org/spfe-ot/1.0/test-passed</xsl:when>
+                <xsl:otherwise><xsl:value-of select="."/></xsl:otherwise>
+            </xsl:choose>
+        </xsl:attribute>
+    </xsl:template>-->
     
     <!-- <xsl:template name="create-run-command">
         <xsl:param name="build-command"/>
