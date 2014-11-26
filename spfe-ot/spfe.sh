@@ -9,17 +9,27 @@ function abs_path() {
 
 if [ -e "$1" ]; then
 
-    export SPFE_BUILD_DIR=${SPFE_BUILD_DIR:-$HOME/spfebuild}
+    SAXON_JAR=${SPFEOT_HOME:?Enviornment variable SPFEOT_HOME is not set}/tools/saxon9he/saxon9he.jar
+    if [ ! -e $SAXON_JAR ]; then
+        echo "No SPFE Open Toolkit in $SPFEOT_HOME"
+        echo "Please check setting of SPFEOT_HOME"
+        exit
+    fi
+    
+    SPFE_CONFIG=$(abs_path $1)
+    SPFE_CONFIG_DIR=$(dirname $SPFE_CONFIG)
+    cd $SPFE_CONFIG_DIR
+    
+    SPFE_BUILD_DIR=${SPFE_BUILD_DIR:-$HOME/spfebuild}
 
     echo "Building in directory: $SPFE_BUILD_DIR"
     mkdir $SPFE_BUILD_DIR
 
-    SPFE_CONFIG=$(abs_path $1)
 
     SPFE_TEMP_BUILD_FILE=$SPFE_BUILD_DIR/spfebuild.xml
     export ANT_OPTS="$ANT_OPTS -XX:PermSize=512m"
 
-    java -classpath $SPFEOT_HOME/tools/saxon9he/saxon9he.jar net.sf.saxon.Transform \
+    java -classpath $SAXON_JAR net.sf.saxon.Transform \
     -xsl:$SPFEOT_HOME/1.0/scripts/config/config.xsl \
     -it:main \
     configfile=$SPFE_CONFIG \
